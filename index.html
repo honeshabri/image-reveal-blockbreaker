@@ -3,29 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>画像明かしブロック崩し</title>
+    <title>画像明かしブロック崩し - シンプル版</title>
     <style>
         body {
             margin: 0;
             padding: 0;
-            overflow: hidden;
-            touch-action: none;
             background-color: #000;
+            color: white;
+            font-family: Arial, sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            height: 100vh;
-            font-family: 'Arial', sans-serif;
-            color: white;
+            min-height: 100vh;
         }
         
         #gameContainer {
             position: relative;
+            width: 800px;
+            max-width: 95vw;
             margin: 0 auto;
-            overflow: hidden;
-            max-width: 100%;
-            max-height: 80vh;
         }
         
         #gameCanvas {
@@ -33,40 +30,25 @@
             display: block;
             margin: 0 auto;
             max-width: 100%;
-            max-height: 80vh;
         }
         
         #startScreen {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.7);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 10;
-        }
-        
-        #imageUploadContainer {
-            margin-top: 20px;
             text-align: center;
+            margin-bottom: 20px;
         }
         
         .btn {
             background-color: #4CAF50;
             border: none;
             color: white;
-            padding: 15px 32px;
+            padding: 10px 20px;
             text-align: center;
             text-decoration: none;
             display: inline-block;
             font-size: 16px;
             margin: 10px 2px;
             cursor: pointer;
-            border-radius: 8px;
+            border-radius: 5px;
         }
         
         .btn:disabled {
@@ -74,576 +56,325 @@
             cursor: not-allowed;
         }
         
-        #gameOverScreen, #gameClearScreen {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.7);
-            display: none;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 10;
+        .uploadContainer {
+            margin: 10px 0;
         }
         
-        .file-upload {
-            position: relative;
-            overflow: hidden;
-            margin: 10px;
-            background-color: #3498db;
-            color: white;
-            padding: 12px 20px;
-            border-radius: 8px;
-            display: inline-block;
-            cursor: pointer;
-        }
-        
-        .file-upload input[type=file] {
-            position: absolute;
-            top: 0;
-            right: 0;
-            min-width: 100%;
-            min-height: 100%;
-            font-size: 100px;
-            text-align: right;
-            filter: alpha(opacity=0);
-            opacity: 0;
-            outline: none;
-            background: white;
-            cursor: inherit;
-            display: block;
-        }
-        
-        .image-preview {
-            margin-top: 10px;
+        .imagePreview {
             max-width: 200px;
-            max-height: 120px;
-            border: 2px solid #ccc;
-            display: none;
+            max-height: 100px;
+            margin-top: 10px;
         }
     </style>
 </head>
 <body>
     <div id="gameContainer">
-        <canvas id="gameCanvas"></canvas>
-        
         <div id="startScreen">
             <h1>画像明かしブロック崩し</h1>
-            <p>2枚の画像をアップロードして、ブロック崩しゲームを始めましょう！</p>
+            <p>2枚の画像をアップロードしてゲームを始めよう！</p>
             
-            <div id="imageUploadContainer">
+            <div class="uploadContainer">
+                <p>表の画像:</p>
+                <input type="file" id="frontImage" accept="image/*">
                 <div>
-                    <label class="file-upload">
-                        表の画像を選択
-                        <input type="file" id="frontImageUpload" accept="image/*">
-                    </label>
-                    <img id="frontImagePreview" class="image-preview" alt="表の画像プレビュー">
+                    <img id="frontPreview" class="imagePreview" style="display:none;">
                 </div>
+            </div>
+            
+            <div class="uploadContainer">
+                <p>背景の画像:</p>
+                <input type="file" id="backImage" accept="image/*">
                 <div>
-                    <label class="file-upload">
-                        背景の画像を選択
-                        <input type="file" id="backImageUpload" accept="image/*">
-                    </label>
-                    <img id="backImagePreview" class="image-preview" alt="背景の画像プレビュー">
+                    <img id="backPreview" class="imagePreview" style="display:none;">
                 </div>
             </div>
             
             <button id="startButton" class="btn" disabled>ゲームスタート</button>
         </div>
         
-        <div id="gameOverScreen">
-            <h1>ゲームオーバー</h1>
-            <button id="restartButton" class="btn">もう一度プレイ</button>
-        </div>
+        <canvas id="gameCanvas" style="display:none;"></canvas>
         
-        <div id="gameClearScreen">
-            <h1>クリア！</h1>
-            <p>すべてのブロックを崩しました！</p>
-            <button id="newGameButton" class="btn">新しいゲーム</button>
+        <div id="gameControls" style="display:none;">
+            <button id="restartButton" class="btn">リスタート</button>
         </div>
     </div>
 
     <script>
-        // DOMの読み込み完了後に実行
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log("DOM読み込み完了");
+        // ページ読み込み完了時に実行
+        window.onload = function() {
+            console.log("ページが完全に読み込まれました");
             
-            // ゲームの状態
-            const gameState = {
-                started: false,
-                paused: false,
-                gameOver: false,
-                gameClear: false,
-                score: 0,
-                lives: 3,
-                frontImage: null,
-                backImage: null,
-                resizedWidth: 0,
-                resizedHeight: 0,
-                blockSize: { width: 0, height: 0 },
-                blockRows: 6,
-                blockColumns: 10,
-                blocks: [],
-                activeBlocks: 0,
-                paddle: {
-                    width: 100,
-                    height: 15,
-                    x: 0,
-                    y: 0,
-                    speed: 8,
-                    touchStartX: 0
-                },
-                ball: {
-                    radius: 8,
-                    x: 0,
-                    y: 0,
-                    dx: 0,
-                    dy: 0,
-                    speed: 5
-                }
-            };
-
-            // キャンバスと2Dコンテキストの取得
-            const canvas = document.getElementById('gameCanvas');
-            const ctx = canvas.getContext('2d');
-
             // DOM要素の取得
-            const startScreen = document.getElementById('startScreen');
-            const gameOverScreen = document.getElementById('gameOverScreen');
-            const gameClearScreen = document.getElementById('gameClearScreen');
+            const frontImageInput = document.getElementById('frontImage');
+            const backImageInput = document.getElementById('backImage');
+            const frontPreview = document.getElementById('frontPreview');
+            const backPreview = document.getElementById('backPreview');
             const startButton = document.getElementById('startButton');
             const restartButton = document.getElementById('restartButton');
-            const newGameButton = document.getElementById('newGameButton');
-            const frontImageUpload = document.getElementById('frontImageUpload');
-            const backImageUpload = document.getElementById('backImageUpload');
-            const frontImagePreview = document.getElementById('frontImagePreview');
-            const backImagePreview = document.getElementById('backImagePreview');
-
-            // デバッグ情報：DOM要素が取得できているか確認
-            console.log("DOM要素:", {
-                canvas: !!canvas,
-                startScreen: !!startScreen,
-                startButton: !!startButton,
-                frontImageUpload: !!frontImageUpload,
-                backImageUpload: !!backImageUpload
-            });
-
-            // 画像アップロードのハンドラ
-            frontImageUpload.addEventListener('change', function(e) {
+            const startScreen = document.getElementById('startScreen');
+            const gameCanvas = document.getElementById('gameCanvas');
+            const gameControls = document.getElementById('gameControls');
+            
+            // ゲーム設定
+            const game = {
+                frontImage: null,
+                backImage: null,
+                canvas: gameCanvas,
+                ctx: gameCanvas.getContext('2d'),
+                width: 800,
+                height: 450,
+                started: false,
+                
+                // ブロック設定
+                blockRows: 5,
+                blockCols: 8,
+                blocks: [],
+                
+                // パドルとボール
+                paddle: { width: 100, height: 15, x: 350, y: 420 },
+                ball: { x: 400, y: 400, radius: 8, dx: 4, dy: -4 }
+            };
+            
+            // 画像アップロードイベント
+            frontImageInput.addEventListener('change', function(e) {
                 handleImageUpload(e, 'front');
             });
-
-            backImageUpload.addEventListener('change', function(e) {
+            
+            backImageInput.addEventListener('change', function(e) {
                 handleImageUpload(e, 'back');
             });
-
+            
             // 画像アップロード処理
             function handleImageUpload(e, type) {
                 const file = e.target.files[0];
                 if (!file) return;
-
+                
                 const reader = new FileReader();
                 reader.onload = function(event) {
                     const img = new Image();
                     img.onload = function() {
-                        console.log(`${type} 画像が読み込まれました: ${img.width}x${img.height}`);
+                        console.log(`${type}画像が読み込まれました: ${img.width}x${img.height}`);
                         
                         if (type === 'front') {
-                            gameState.frontImage = img;
-                            frontImagePreview.src = event.target.result;
-                            frontImagePreview.style.display = 'inline-block';
+                            game.frontImage = img;
+                            frontPreview.src = event.target.result;
+                            frontPreview.style.display = 'block';
                         } else {
-                            gameState.backImage = img;
-                            backImagePreview.src = event.target.result;
-                            backImagePreview.style.display = 'inline-block';
+                            game.backImage = img;
+                            backPreview.src = event.target.result;
+                            backPreview.style.display = 'block';
                         }
                         
-                        // 両方の画像がアップロードされたかチェック
-                        checkBothImagesLoaded();
+                        // 両方の画像があればスタートボタンを有効化
+                        if (game.frontImage && game.backImage) {
+                            startButton.disabled = false;
+                        }
                     };
                     img.src = event.target.result;
-                    
-                    // 念のために画像ロードエラー時の処理を追加
-                    img.onerror = function() {
-                        console.error(`${type} 画像の読み込みに失敗しました`);
-                        alert(`画像の読み込みに失敗しました。別の画像を試してください。`);
-                    };
                 };
                 reader.readAsDataURL(file);
             }
             
-            // 両方の画像がロードされたかチェックする関数
-            function checkBothImagesLoaded() {
-                console.log("画像チェック - 前面:", !!gameState.frontImage, "背景:", !!gameState.backImage);
+            // スタートボタンイベント
+            startButton.addEventListener('click', startGame);
+            restartButton.addEventListener('click', restartGame);
+            
+            // ゲーム開始
+            function startGame() {
+                // キャンバスサイズ設定
+                game.width = Math.min(800, window.innerWidth * 0.95);
+                game.height = game.width * (9/16); // 16:9アスペクト比
                 
-                if (gameState.frontImage && gameState.backImage) {
-                    console.log("両方の画像が読み込まれました - スタートボタンを有効化します");
-                    startButton.disabled = false;
-                } else {
-                    console.log("まだ両方の画像が読み込まれていません");
-                }
-            }
-
-            // ゲーム開始ボタンのイベントリスナー
-            startButton.addEventListener('click', initGame);
-            restartButton.addEventListener('click', resetGame);
-            newGameButton.addEventListener('click', resetGame);
-
-            // ゲームの初期化
-            function initGame() {
-                // 画像のアスペクト比を維持しながらキャンバスサイズを設定
-                const maxWidth = Math.min(window.innerWidth * 0.95, 1792);
-                const maxHeight = Math.min(window.innerHeight * 0.8, 1024);
+                gameCanvas.width = game.width;
+                gameCanvas.height = game.height;
                 
-                // アスペクト比を計算（元の画像が1792×1024の場合）
-                const aspectRatio = 1792 / 1024;
+                // UI切り替え
+                startScreen.style.display = 'none';
+                gameCanvas.style.display = 'block';
+                gameControls.style.display = 'block';
                 
-                // 幅と高さを決定
-                let width, height;
-                if (maxWidth / aspectRatio <= maxHeight) {
-                    width = maxWidth;
-                    height = width / aspectRatio;
-                } else {
-                    height = maxHeight;
-                    width = height * aspectRatio;
-                }
+                // パドル位置初期化
+                game.paddle.x = (game.width - game.paddle.width) / 2;
+                game.paddle.y = game.height - game.paddle.height - 10;
                 
-                gameState.resizedWidth = width;
-                gameState.resizedHeight = height;
+                // ボール位置初期化
+                game.ball.x = game.width / 2;
+                game.ball.y = game.height - game.paddle.height - game.ball.radius - 15;
                 
-                // キャンバスサイズを設定
-                canvas.width = width;
-                canvas.height = height;
-                
-                // ブロックサイズを計算
-                gameState.blockSize = {
-                    width: width / gameState.blockColumns,
-                    height: (height * 0.4) / gameState.blockRows // 画面の上部40%にブロックを配置
-                };
-                
-                // パドルの初期位置を設定
-                gameState.paddle.width = width * 0.15; // 画面幅の15%
-                gameState.paddle.x = (width - gameState.paddle.width) / 2;
-                gameState.paddle.y = height - gameState.paddle.height - 10;
-                
-                // ボールの初期位置と速度を設定
-                gameState.ball.x = width / 2;
-                gameState.ball.y = height - gameState.paddle.height - gameState.ball.radius - 15;
-                gameState.ball.dx = gameState.ball.speed;
-                gameState.ball.dy = -gameState.ball.speed;
-                
-                // ブロックを生成
+                // ブロック生成
                 createBlocks();
                 
-                // ゲーム状態をリセット
-                gameState.started = true;
-                gameState.gameOver = false;
-                gameState.gameClear = false;
-                gameState.score = 0;
-                gameState.lives = 3;
+                // マウス操作設定
+                gameCanvas.addEventListener('mousemove', movepaddle);
                 
-                // スタート画面を非表示
-                startScreen.style.display = 'none';
-                
-                // タッチイベントを設定
-                setupTouchEvents();
-                
-                // ゲームループを開始
-                requestAnimationFrame(gameLoop);
+                // ゲーム開始
+                game.started = true;
+                gameLoop();
             }
-
-            // ブロックの生成
-            function createBlocks() {
-                gameState.blocks = [];
-                gameState.activeBlocks = 0;
+            
+            // パドル移動
+            function movepaddle(e) {
+                const rect = gameCanvas.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
                 
-                for (let r = 0; r < gameState.blockRows; r++) {
-                    for (let c = 0; c < gameState.blockColumns; c++) {
-                        gameState.blocks.push({
-                            x: c * gameState.blockSize.width,
-                            y: r * gameState.blockSize.height,
-                            width: gameState.blockSize.width,
-                            height: gameState.blockSize.height,
+                // パドルの位置更新
+                game.paddle.x = mouseX - (game.paddle.width / 2);
+                
+                // 範囲制限
+                if (game.paddle.x < 0) {
+                    game.paddle.x = 0;
+                } else if (game.paddle.x + game.paddle.width > game.width) {
+                    game.paddle.x = game.width - game.paddle.width;
+                }
+            }
+            
+            // ブロック生成
+            function createBlocks() {
+                game.blocks = [];
+                
+                const blockWidth = game.width / game.blockCols;
+                const blockHeight = (game.height * 0.3) / game.blockRows;
+                
+                for (let r = 0; r < game.blockRows; r++) {
+                    for (let c = 0; c < game.blockCols; c++) {
+                        game.blocks.push({
+                            x: c * blockWidth,
+                            y: r * blockHeight,
+                            width: blockWidth,
+                            height: blockHeight,
                             visible: true
                         });
-                        gameState.activeBlocks++;
                     }
                 }
             }
-
-            // タッチイベントとマウスイベントの設定
-            function setupTouchEvents() {
-                // タッチデバイス用
-                canvas.addEventListener('touchstart', handleTouchStart, false);
-                canvas.addEventListener('touchmove', handleTouchMove, false);
-                canvas.addEventListener('touchend', handleTouchEnd, false);
-                
-                // PC用（マウス操作）
-                canvas.addEventListener('mousemove', handleMouseMove, false);
-            }
-
-            // タッチ開始イベントハンドラ
-            function handleTouchStart(e) {
-                e.preventDefault();
-                const touch = e.touches[0];
-                gameState.paddle.touchStartX = touch.clientX;
-            }
-
-            // タッチ移動イベントハンドラ
-            function handleTouchMove(e) {
-                e.preventDefault();
-                if (!gameState.started || gameState.paused) return;
-                
-                const touch = e.touches[0];
-                const diffX = touch.clientX - gameState.paddle.touchStartX;
-                
-                gameState.paddle.x += diffX;
-                
-                // パドルが画面外に出ないようにする
-                if (gameState.paddle.x < 0) {
-                    gameState.paddle.x = 0;
-                } else if (gameState.paddle.x + gameState.paddle.width > canvas.width) {
-                    gameState.paddle.x = canvas.width - gameState.paddle.width;
-                }
-                
-                gameState.paddle.touchStartX = touch.clientX;
-            }
-
-            // タッチ終了イベントハンドラ
-            function handleTouchEnd(e) {
-                e.preventDefault();
-            }
             
-            // マウス移動イベントハンドラ（PC用）
-            function handleMouseMove(e) {
-                if (!gameState.started || gameState.paused) return;
-                
-                // マウス位置からキャンバス上の相対位置を計算
-                const rect = canvas.getBoundingClientRect();
-                const mouseX = e.clientX - rect.left;
-                
-                // パドルの中心をマウス位置に合わせる
-                gameState.paddle.x = mouseX - (gameState.paddle.width / 2);
-                
-                // パドルが画面外に出ないようにする
-                if (gameState.paddle.x < 0) {
-                    gameState.paddle.x = 0;
-                } else if (gameState.paddle.x + gameState.paddle.width > canvas.width) {
-                    gameState.paddle.x = canvas.width - gameState.paddle.width;
-                }
-            }
-
             // ゲームループ
             function gameLoop() {
-                if (!gameState.started || gameState.paused) return;
+                if (!game.started) return;
                 
-                // キャンバスをクリア
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                // キャンバスクリア
+                game.ctx.clearRect(0, 0, game.width, game.height);
                 
-                // 背景画像を描画
-                if (gameState.backImage) {
-                    ctx.drawImage(gameState.backImage, 0, 0, canvas.width, canvas.height);
+                // 背景画像描画
+                if (game.backImage) {
+                    game.ctx.drawImage(game.backImage, 0, 0, game.width, game.height);
                 }
                 
-                // ブロックを描画
+                // ブロック描画
                 drawBlocks();
                 
-                // パドルを描画
-                drawPaddle();
+                // パドル描画
+                game.ctx.fillStyle = '#0095DD';
+                game.ctx.fillRect(game.paddle.x, game.paddle.y, game.paddle.width, game.paddle.height);
                 
-                // ボールを描画
-                drawBall();
+                // ボール描画
+                game.ctx.beginPath();
+                game.ctx.arc(game.ball.x, game.ball.y, game.ball.radius, 0, Math.PI * 2);
+                game.ctx.fillStyle = '#FF6347';
+                game.ctx.fill();
+                game.ctx.closePath();
                 
-                // ボールの移動
-                moveBall();
+                // ボール移動
+                game.ball.x += game.ball.dx;
+                game.ball.y += game.ball.dy;
                 
-                // 当たり判定
-                detectCollision();
-                
-                // クリア判定
-                if (gameState.activeBlocks === 0 && !gameState.gameClear) {
-                    gameState.gameClear = true;
-                    gameClearScreen.style.display = 'flex';
-                    return;
+                // 壁との衝突判定
+                if (game.ball.x + game.ball.radius > game.width || game.ball.x - game.ball.radius < 0) {
+                    game.ball.dx = -game.ball.dx;
                 }
                 
-                // ゲームオーバー判定
-                if (gameState.lives <= 0 && !gameState.gameOver) {
-                    gameState.gameOver = true;
-                    gameOverScreen.style.display = 'flex';
-                    return;
+                if (game.ball.y - game.ball.radius < 0) {
+                    game.ball.dy = -game.ball.dy;
                 }
                 
-                // 次のフレームを要求
-                if (!gameState.gameOver && !gameState.gameClear) {
-                    requestAnimationFrame(gameLoop);
+                // パドルとの衝突判定
+                if (game.ball.y + game.ball.radius > game.paddle.y && 
+                    game.ball.x > game.paddle.x && 
+                    game.ball.x < game.paddle.x + game.paddle.width) {
+                    game.ball.dy = -game.ball.dy;
                 }
+                
+                // ブロックとの衝突判定
+                for (let i = 0; i < game.blocks.length; i++) {
+                    const block = game.blocks[i];
+                    if (block.visible && 
+                        game.ball.x > block.x && 
+                        game.ball.x < block.x + block.width && 
+                        game.ball.y > block.y && 
+                        game.ball.y < block.y + block.height) {
+                        game.ball.dy = -game.ball.dy;
+                        block.visible = false;
+                    }
+                }
+                
+                // 下の壁に当たったらリセット
+                if (game.ball.y + game.ball.radius > game.height) {
+                    resetBall();
+                }
+                
+                // 次のフレーム
+                requestAnimationFrame(gameLoop);
             }
-
-            // ブロックの描画
+            
+            // ブロック描画
             function drawBlocks() {
-                for (let i = 0; i < gameState.blocks.length; i++) {
-                    const block = gameState.blocks[i];
+                for (let i = 0; i < game.blocks.length; i++) {
+                    const block = game.blocks[i];
                     if (block.visible) {
                         // 表の画像の該当部分を描画
-                        if (gameState.frontImage) {
+                        if (game.frontImage) {
                             // ソース画像の該当部分を計算
-                            const sourceX = (block.x / canvas.width) * gameState.frontImage.width;
-                            const sourceY = (block.y / canvas.height) * gameState.frontImage.height;
-                            const sourceWidth = (block.width / canvas.width) * gameState.frontImage.width;
-                            const sourceHeight = (block.height / canvas.height) * gameState.frontImage.height;
+                            const sourceX = (block.x / game.width) * game.frontImage.width;
+                            const sourceY = (block.y / game.height) * game.frontImage.height;
+                            const sourceWidth = (block.width / game.width) * game.frontImage.width;
+                            const sourceHeight = (block.height / game.height) * game.frontImage.height;
                             
                             // 対応する部分をブロックとして描画
-                            ctx.drawImage(
-                                gameState.frontImage,
+                            game.ctx.drawImage(
+                                game.frontImage,
                                 sourceX, sourceY, sourceWidth, sourceHeight,
                                 block.x, block.y, block.width, block.height
                             );
                         } else {
-                            // 画像がない場合はデフォルトのブロック
-                            ctx.fillStyle = '#0095DD';
-                            ctx.fillRect(block.x, block.y, block.width, block.height);
+                            // デフォルトブロック
+                            game.ctx.fillStyle = '#0095DD';
+                            game.ctx.fillRect(block.x, block.y, block.width, block.height);
                         }
                         
-                        // ブロックの境界線を描画
-                        ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
-                        ctx.strokeRect(block.x, block.y, block.width, block.height);
+                        // 枠線
+                        game.ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+                        game.ctx.strokeRect(block.x, block.y, block.width, block.height);
                     }
                 }
             }
-
-            // パドルの描画
-            function drawPaddle() {
-                ctx.fillStyle = '#0095DD';
-                ctx.fillRect(gameState.paddle.x, gameState.paddle.y, gameState.paddle.width, gameState.paddle.height);
-                ctx.strokeStyle = '#003366';
-                ctx.strokeRect(gameState.paddle.x, gameState.paddle.y, gameState.paddle.width, gameState.paddle.height);
-            }
-
-            // ボールの描画
-            function drawBall() {
-                ctx.beginPath();
-                ctx.arc(gameState.ball.x, gameState.ball.y, gameState.ball.radius, 0, Math.PI * 2);
-                ctx.fillStyle = '#FF6347';
-                ctx.fill();
-                ctx.closePath();
-            }
-
-            // ボールの移動
-            function moveBall() {
-                gameState.ball.x += gameState.ball.dx;
-                gameState.ball.y += gameState.ball.dy;
-                
-                // 左右の壁との衝突判定
-                if (gameState.ball.x - gameState.ball.radius < 0 || 
-                    gameState.ball.x + gameState.ball.radius > canvas.width) {
-                    gameState.ball.dx = -gameState.ball.dx;
-                }
-                
-                // 上の壁との衝突判定
-                if (gameState.ball.y - gameState.ball.radius < 0) {
-                    gameState.ball.dy = -gameState.ball.dy;
-                }
-                
-                // 下の壁（ミス）
-                if (gameState.ball.y + gameState.ball.radius > canvas.height) {
-                    gameState.lives--;
-                    if (gameState.lives > 0) {
-                        resetBall();
-                    }
-                }
-            }
-
-            // ボールのリセット
-            function resetBall() {
-                gameState.ball.x = canvas.width / 2;
-                gameState.ball.y = canvas.height - gameState.paddle.height - gameState.ball.radius - 15;
-                gameState.ball.dx = gameState.ball.speed * (Math.random() > 0.5 ? 1 : -1);
-                gameState.ball.dy = -gameState.ball.speed;
-            }
-
-            // 当たり判定
-            function detectCollision() {
-                // パドルとの衝突判定
-                if (gameState.ball.y + gameState.ball.radius > gameState.paddle.y &&
-                    gameState.ball.y - gameState.ball.radius < gameState.paddle.y + gameState.paddle.height &&
-                    gameState.ball.x > gameState.paddle.x &&
-                    gameState.ball.x < gameState.paddle.x + gameState.paddle.width) {
-                    
-                    // ボールが上から当たった場合のみ反射
-                    if (gameState.ball.dy > 0) {
-                        // パドルのどこに当たったかで反射角を変える
-                        const hitPos = (gameState.ball.x - gameState.paddle.x) / gameState.paddle.width;
-                        const angle = hitPos * Math.PI - Math.PI / 2; // -90度～90度
-                        
-                        gameState.ball.dx = gameState.ball.speed * Math.cos(angle);
-                        gameState.ball.dy = -gameState.ball.speed * Math.sin(angle);
-                    }
-                }
-                
-                // ブロックとの衝突判定
-                for (let i = 0; i < gameState.blocks.length; i++) {
-                    const block = gameState.blocks[i];
-                    if (block.visible) {
-                        if (gameState.ball.x + gameState.ball.radius > block.x &&
-                            gameState.ball.x - gameState.ball.radius < block.x + block.width &&
-                            gameState.ball.y + gameState.ball.radius > block.y &&
-                            gameState.ball.y - gameState.ball.radius < block.y + block.height) {
-                            
-                            // ブロックを非表示にする
-                            block.visible = false;
-                            gameState.activeBlocks--;
-                            gameState.score += 10;
-                            
-                            // ボールの反射（衝突した面によって反射方向を変える）
-                            const ballCenterX = gameState.ball.x;
-                            const ballCenterY = gameState.ball.y;
-                            const blockCenterX = block.x + block.width / 2;
-                            const blockCenterY = block.y + block.height / 2;
-                            
-                            // ボールとブロックの中心の差
-                            const dx = ballCenterX - blockCenterX;
-                            const dy = ballCenterY - blockCenterY;
-                            
-                            // 横からの衝突か縦からの衝突かを判断
-                            if (Math.abs(dx / block.width) > Math.abs(dy / block.height)) {
-                                // 横からの衝突
-                                gameState.ball.dx = -gameState.ball.dx;
-                            } else {
-                                // 縦からの衝突
-                                gameState.ball.dy = -gameState.ball.dy;
-                            }
-                            
-                            // 一度衝突したら次のブロックは処理しない（多重衝突防止）
-                            break;
-                        }
-                    }
-                }
-            }
-
-            // ゲームのリセット
-            function resetGame() {
-                gameOverScreen.style.display = 'none';
-                gameClearScreen.style.display = 'none';
-                startScreen.style.display = 'flex';
-                gameState.started = false;
-            }
-
-            // ウィンドウリサイズ時の処理
-            window.addEventListener('resize', function() {
-                if (gameState.started) {
-                    // ゲーム中の場合は一時停止して再初期化
-                    gameState.paused = true;
-                    initGame();
-                }
-            });
-
-            // 初期ロード時にコンソールメッセージを表示
-            console.log("ゲームが読み込まれました。画像をアップロードしてください。");
             
-        }); // DOMContentLoadedイベントの終わり
+            // ボールリセット
+            function resetBall() {
+                game.ball.x = game.width / 2;
+                game.ball.y = game.height - game.paddle.height - game.ball.radius - 15;
+                game.ball.dx = 4 * (Math.random() > 0.5 ? 1 : -1);
+                game.ball.dy = -4;
+            }
+            
+            // リスタート
+            function restartGame() {
+                game.started = false;
+                
+                startScreen.style.display = 'block';
+                gameCanvas.style.display = 'none';
+                gameControls.style.display = 'none';
+                
+                // 入力フィールドリセット
+                frontImageInput.value = '';
+                backImageInput.value = '';
+                frontPreview.style.display = 'none';
+                backPreview.style.display = 'none';
+                startButton.disabled = true;
+                
+                game.frontImage = null;
+                game.backImage = null;
+            }
+        };
     </script>
 </body>
 </html>
