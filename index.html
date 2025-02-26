@@ -235,6 +235,8 @@
             reader.onload = function(event) {
                 const img = new Image();
                 img.onload = function() {
+                    console.log(`${type} 画像が読み込まれました: ${img.width}x${img.height}`);
+                    
                     if (type === 'front') {
                         gameState.frontImage = img;
                         frontImagePreview.src = event.target.result;
@@ -245,20 +247,39 @@
                         backImagePreview.style.display = 'inline-block';
                     }
                     
-                    // 両方の画像がアップロードされたらスタートボタンを有効化
-                    if (gameState.frontImage && gameState.backImage) {
-                        startButton.disabled = false;
-                    }
+                    // 両方の画像がアップロードされたかチェック
+                    checkBothImagesLoaded();
                 };
                 img.src = event.target.result;
+                
+                // 念のために画像ロードエラー時の処理を追加
+                img.onerror = function() {
+                    console.error(`${type} 画像の読み込みに失敗しました`);
+                    alert(`画像の読み込みに失敗しました。別の画像を試してください。`);
+                };
             };
             reader.readAsDataURL(file);
+        }
+        
+        // 両方の画像がロードされたかチェックする関数
+        function checkBothImagesLoaded() {
+            console.log("画像チェック - 前面:", !!gameState.frontImage, "背景:", !!gameState.backImage);
+            
+            if (gameState.frontImage && gameState.backImage) {
+                console.log("両方の画像が読み込まれました - スタートボタンを有効化します");
+                startButton.disabled = false;
+            } else {
+                console.log("まだ両方の画像が読み込まれていません");
+            }
         }
 
         // ゲーム開始ボタンのイベントリスナー
         startButton.addEventListener('click', initGame);
         restartButton.addEventListener('click', resetGame);
         newGameButton.addEventListener('click', resetGame);
+        
+        // 初期ロード時にコンソールメッセージを表示
+        console.log("ゲームが読み込まれました。画像をアップロードしてください。");
 
         // ゲームの初期化
         function initGame() {
