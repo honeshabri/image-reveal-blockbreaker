@@ -48,6 +48,8 @@
             align-items: center;
             justify-content: center;
             z-index: 10;
+            padding: 20px;
+            box-sizing: border-box;
         }
         
         .btn {
@@ -76,11 +78,19 @@
             align-items: center;
             justify-content: center;
             z-index: 10;
+            padding: 20px;
+            box-sizing: border-box;
         }
         
         .loading {
             margin-top: 20px;
             margin-bottom: 20px;
+        }
+        
+        h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+            text-align: center;
         }
     </style>
 </head>
@@ -129,7 +139,7 @@
                 resizedWidth: 0,
                 resizedHeight: 0,
                 blockSize: { width: 0, height: 0 },
-                blockRows: 6,
+                blockRows: 4,  // ブロックの行数を減らす（上部75%まで）
                 blockColumns: 10,
                 blocks: [],
                 activeBlocks: 0,
@@ -259,10 +269,10 @@
                 canvas.width = width;
                 canvas.height = height;
                 
-                // ブロックサイズを計算 - 画面全体を覆うように
+                // ブロックサイズを計算 - 上部75%だけをブロックで覆う
                 gameState.blockSize = {
                     width: width / gameState.blockColumns,
-                    height: height / gameState.blockRows
+                    height: (height * 0.75) / gameState.blockRows
                 };
                 
                 // パドルの初期位置を設定
