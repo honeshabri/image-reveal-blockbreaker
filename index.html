@@ -166,9 +166,9 @@
     </div>
 
     <script>
-        // DOMの読み込み完了後に実行
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log("DOM読み込み完了");
+        // ページ読み込み完了時に実行
+        window.onload = function() {
+            console.log("ページが完全に読み込まれました");
             
             // ゲームの状態
             const gameState = {
@@ -317,10 +317,10 @@
                 canvas.width = width;
                 canvas.height = height;
                 
-                // ブロックサイズを計算
+                // ブロックサイズを計算 - 画面全体を覆うように
                 gameState.blockSize = {
                     width: width / gameState.blockColumns,
-                    height: (height * 0.4) / gameState.blockRows // 画面の上部40%にブロックを配置
+                    height: height / gameState.blockRows
                 };
                 
                 // パドルの初期位置を設定
@@ -442,9 +442,29 @@
                 // キャンバスをクリア
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 
-                // 背景画像を描画
+                // 背景を黒で塗りつぶす
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // 見えているブロックの部分だけ背景画像を描画
                 if (gameState.backImage) {
-                    ctx.drawImage(gameState.backImage, 0, 0, canvas.width, canvas.height);
+                    for (let i = 0; i < gameState.blocks.length; i++) {
+                        const block = gameState.blocks[i];
+                        if (!block.visible) {
+                            // ソース画像の該当部分を計算
+                            const sourceX = (block.x / canvas.width) * gameState.backImage.width;
+                            const sourceY = (block.y / canvas.height) * gameState.backImage.height;
+                            const sourceWidth = (block.width / canvas.width) * gameState.backImage.width;
+                            const sourceHeight = (block.height / canvas.height) * gameState.backImage.height;
+                            
+                            // 対応する部分を背景として描画
+                            ctx.drawImage(
+                                gameState.backImage,
+                                sourceX, sourceY, sourceWidth, sourceHeight,
+                                block.x, block.y, block.width, block.height
+                            );
+                        }
+                    }
                 }
                 
                 // ブロックを描画
@@ -642,8 +662,7 @@
 
             // 初期ロード時にコンソールメッセージを表示
             console.log("ゲームが読み込まれました。画像をアップロードしてください。");
-            
-        }); // DOMContentLoadedイベントの終わり
+        };
     </script>
 </body>
 </html>
