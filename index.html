@@ -80,6 +80,7 @@
         
         .loading {
             margin-top: 20px;
+            margin-bottom: 20px;
         }
     </style>
 </head>
@@ -89,11 +90,13 @@
         
         <div id="startScreen">
             <h1>画像明かしブロック崩し</h1>
-            <p>画像が読み込まれるのを待っています...</p>
-            <div class="loading">
-                <span id="loadingText">読み込み中...</span>
+            <div id="loadingContainer">
+                <p>画像が読み込まれるのを待っています...</p>
+                <div class="loading">
+                    <span id="loadingText">読み込み中...</span>
+                </div>
             </div>
-            <button id="startButton" class="btn" disabled>ゲームスタート</button>
+            <button id="startButton" class="btn" style="display:none;">ゲームスタート</button>
         </div>
         
         <div id="gameOverScreen">
@@ -160,6 +163,7 @@
             const restartButton = document.getElementById('restartButton');
             const newGameButton = document.getElementById('newGameButton');
             const loadingText = document.getElementById('loadingText');
+            const loadingContainer = document.getElementById('loadingContainer');
 
             // デバッグ情報：DOM要素が取得できているか確認
             console.log("DOM要素:", {
@@ -209,24 +213,33 @@
                     if (imagesLoaded === 2) {
                         console.log("すべての画像が読み込まれました");
                         loadingText.textContent = "画像の読み込みが完了しました！";
+                        loadingContainer.style.display = "none";
+                        startButton.style.display = "block";
                         startButton.disabled = false;
                     }
                 }
             }
 
             // ゲーム開始ボタンのイベントリスナー
-            startButton.addEventListener('click', initGame);
+            startButton.addEventListener('click', function() {
+                console.log("スタートボタンがクリックされました");
+                initGame();
+            });
+            
             restartButton.addEventListener('click', resetGame);
             newGameButton.addEventListener('click', resetGame);
 
             // ゲームの初期化
             function initGame() {
+                console.log("ゲーム初期化開始");
+                
                 // 画像のアスペクト比を維持しながらキャンバスサイズを設定
                 const maxWidth = Math.min(window.innerWidth * 0.95, 1792);
                 const maxHeight = Math.min(window.innerHeight * 0.8, 1024);
                 
                 // アスペクト比を計算（元の画像に合わせる）
                 const aspectRatio = gameState.frontImage.width / gameState.frontImage.height;
+                console.log("アスペクト比:", aspectRatio);
                 
                 // 幅と高さを決定
                 let width, height;
@@ -240,6 +253,7 @@
                 
                 gameState.resizedWidth = width;
                 gameState.resizedHeight = height;
+                console.log("キャンバスサイズ:", width, "x", height);
                 
                 // キャンバスサイズを設定
                 canvas.width = width;
@@ -278,6 +292,8 @@
                 // タッチイベントを設定
                 setupTouchEvents();
                 
+                console.log("ゲーム初期化完了、ゲーム開始");
+                
                 // ゲームループを開始
                 requestAnimationFrame(gameLoop);
             }
@@ -299,6 +315,7 @@
                         gameState.activeBlocks++;
                     }
                 }
+                console.log("ブロック生成完了:", gameState.activeBlocks, "個");
             }
 
             // タッチイベントとマウスイベントの設定
@@ -310,6 +327,7 @@
                 
                 // PC用（マウス操作）
                 canvas.addEventListener('mousemove', handleMouseMove, false);
+                console.log("タッチ・マウスイベント設定完了");
             }
 
             // タッチ開始イベントハンドラ
@@ -575,8 +593,13 @@
             function resetGame() {
                 gameOverScreen.style.display = 'none';
                 gameClearScreen.style.display = 'none';
+                loadingContainer.style.display = 'block';
+                startButton.style.display = 'none';
                 startScreen.style.display = 'flex';
                 gameState.started = false;
+                
+                // 画像を再度読み込む
+                loadImages();
             }
 
             // ウィンドウリサイズ時の処理
