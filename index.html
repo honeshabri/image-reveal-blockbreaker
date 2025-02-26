@@ -50,11 +50,6 @@
             z-index: 10;
         }
         
-        #imageUploadContainer {
-            margin-top: 20px;
-            text-align: center;
-        }
-        
         .btn {
             background-color: #4CAF50;
             border: none;
@@ -67,11 +62,6 @@
             margin: 10px 2px;
             cursor: pointer;
             border-radius: 8px;
-        }
-        
-        .btn:disabled {
-            background-color: #cccccc;
-            cursor: not-allowed;
         }
         
         #gameOverScreen, #gameClearScreen {
@@ -88,40 +78,8 @@
             z-index: 10;
         }
         
-        .file-upload {
-            position: relative;
-            overflow: hidden;
-            margin: 10px;
-            background-color: #3498db;
-            color: white;
-            padding: 12px 20px;
-            border-radius: 8px;
-            display: inline-block;
-            cursor: pointer;
-        }
-        
-        .file-upload input[type=file] {
-            position: absolute;
-            top: 0;
-            right: 0;
-            min-width: 100%;
-            min-height: 100%;
-            font-size: 100px;
-            text-align: right;
-            filter: alpha(opacity=0);
-            opacity: 0;
-            outline: none;
-            background: white;
-            cursor: inherit;
-            display: block;
-        }
-        
-        .image-preview {
-            margin-top: 10px;
-            max-width: 200px;
-            max-height: 120px;
-            border: 2px solid #ccc;
-            display: none;
+        .loading {
+            margin-top: 20px;
         }
     </style>
 </head>
@@ -131,25 +89,10 @@
         
         <div id="startScreen">
             <h1>画像明かしブロック崩し</h1>
-            <p>2枚の画像をアップロードして、ブロック崩しゲームを始めましょう！</p>
-            
-            <div id="imageUploadContainer">
-                <div>
-                    <label class="file-upload">
-                        表の画像を選択
-                        <input type="file" id="frontImageUpload" accept="image/*">
-                    </label>
-                    <img id="frontImagePreview" class="image-preview" alt="表の画像プレビュー">
-                </div>
-                <div>
-                    <label class="file-upload">
-                        背景の画像を選択
-                        <input type="file" id="backImageUpload" accept="image/*">
-                    </label>
-                    <img id="backImagePreview" class="image-preview" alt="背景の画像プレビュー">
-                </div>
+            <p>画像が読み込まれるのを待っています...</p>
+            <div class="loading">
+                <span id="loadingText">読み込み中...</span>
             </div>
-            
             <button id="startButton" class="btn" disabled>ゲームスタート</button>
         </div>
         
@@ -216,73 +159,58 @@
             const startButton = document.getElementById('startButton');
             const restartButton = document.getElementById('restartButton');
             const newGameButton = document.getElementById('newGameButton');
-            const frontImageUpload = document.getElementById('frontImageUpload');
-            const backImageUpload = document.getElementById('backImageUpload');
-            const frontImagePreview = document.getElementById('frontImagePreview');
-            const backImagePreview = document.getElementById('backImagePreview');
+            const loadingText = document.getElementById('loadingText');
 
             // デバッグ情報：DOM要素が取得できているか確認
             console.log("DOM要素:", {
                 canvas: !!canvas,
                 startScreen: !!startScreen,
-                startButton: !!startButton,
-                frontImageUpload: !!frontImageUpload,
-                backImageUpload: !!backImageUpload
+                startButton: !!startButton
             });
 
-            // 画像アップロードのハンドラ
-            frontImageUpload.addEventListener('change', function(e) {
-                handleImageUpload(e, 'front');
-            });
+            // 固定画像のURLを設定
+            const frontImageUrl = "https://raw.githubusercontent.com/honeshabri/image-reveal-blockbreaker/main/front.jpg";
+            const backImageUrl = "https://raw.githubusercontent.com/honeshabri/image-reveal-blockbreaker/main/back.jpg";
 
-            backImageUpload.addEventListener('change', function(e) {
-                handleImageUpload(e, 'back');
-            });
+            // 画像の読み込み
+            loadImages();
 
-            // 画像アップロード処理
-            function handleImageUpload(e, type) {
-                const file = e.target.files[0];
-                if (!file) return;
-
-                const reader = new FileReader();
-                reader.onload = function(event) {
-                    const img = new Image();
-                    img.onload = function() {
-                        console.log(`${type} 画像が読み込まれました: ${img.width}x${img.height}`);
-                        
-                        if (type === 'front') {
-                            gameState.frontImage = img;
-                            frontImagePreview.src = event.target.result;
-                            frontImagePreview.style.display = 'inline-block';
-                        } else {
-                            gameState.backImage = img;
-                            backImagePreview.src = event.target.result;
-                            backImagePreview.style.display = 'inline-block';
-                        }
-                        
-                        // 両方の画像がアップロードされたかチェック
-                        checkBothImagesLoaded();
-                    };
-                    img.src = event.target.result;
-                    
-                    // 念のために画像ロードエラー時の処理を追加
-                    img.onerror = function() {
-                        console.error(`${type} 画像の読み込みに失敗しました`);
-                        alert(`画像の読み込みに失敗しました。別の画像を試してください。`);
-                    };
-                };
-                reader.readAsDataURL(file);
-            }
-            
-            // 両方の画像がロードされたかチェックする関数
-            function checkBothImagesLoaded() {
-                console.log("画像チェック - 前面:", !!gameState.frontImage, "背景:", !!gameState.backImage);
+            function loadImages() {
+                let imagesLoaded = 0;
                 
-                if (gameState.frontImage && gameState.backImage) {
-                    console.log("両方の画像が読み込まれました - スタートボタンを有効化します");
-                    startButton.disabled = false;
-                } else {
-                    console.log("まだ両方の画像が読み込まれていません");
+                // 表の画像を読み込み
+                gameState.frontImage = new Image();
+                gameState.frontImage.onload = function() {
+                    console.log("前面画像が読み込まれました:", gameState.frontImage.width, "x", gameState.frontImage.height);
+                    imagesLoaded++;
+                    checkAllImagesLoaded();
+                };
+                gameState.frontImage.onerror = function() {
+                    console.error("前面画像の読み込みに失敗しました");
+                    loadingText.textContent = "画像の読み込みに失敗しました。ページを更新してください。";
+                };
+                gameState.frontImage.src = frontImageUrl;
+                
+                // 背景画像を読み込み
+                gameState.backImage = new Image();
+                gameState.backImage.onload = function() {
+                    console.log("背景画像が読み込まれました:", gameState.backImage.width, "x", gameState.backImage.height);
+                    imagesLoaded++;
+                    checkAllImagesLoaded();
+                };
+                gameState.backImage.onerror = function() {
+                    console.error("背景画像の読み込みに失敗しました");
+                    loadingText.textContent = "画像の読み込みに失敗しました。ページを更新してください。";
+                };
+                gameState.backImage.src = backImageUrl;
+                
+                // 両方の画像が読み込まれたか確認
+                function checkAllImagesLoaded() {
+                    if (imagesLoaded === 2) {
+                        console.log("すべての画像が読み込まれました");
+                        loadingText.textContent = "画像の読み込みが完了しました！";
+                        startButton.disabled = false;
+                    }
                 }
             }
 
@@ -297,8 +225,8 @@
                 const maxWidth = Math.min(window.innerWidth * 0.95, 1792);
                 const maxHeight = Math.min(window.innerHeight * 0.8, 1024);
                 
-                // アスペクト比を計算（元の画像が1792×1024の場合）
-                const aspectRatio = 1792 / 1024;
+                // アスペクト比を計算（元の画像に合わせる）
+                const aspectRatio = gameState.frontImage.width / gameState.frontImage.height;
                 
                 // 幅と高さを決定
                 let width, height;
@@ -661,7 +589,7 @@
             });
 
             // 初期ロード時にコンソールメッセージを表示
-            console.log("ゲームが読み込まれました。画像をアップロードしてください。");
+            console.log("ゲームが読み込まれました。画像の読み込みを待っています。");
         };
     </script>
 </body>
