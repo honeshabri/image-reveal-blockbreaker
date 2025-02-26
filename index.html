@@ -139,10 +139,13 @@
                 resizedWidth: 0,
                 resizedHeight: 0,
                 blockSize: { width: 0, height: 0 },
-                blockRows: 4,  // ブロックの行数を減らす（上部75%まで）
+                blockRows: 0,  // 後で計算
                 blockColumns: 10,
                 blocks: [],
                 activeBlocks: 0,
+                playAreaHeight: 0, // プレイエリアの高さ（画像+下部空間）
+                imageHeight: 0,   // 画像の描画高さ
+                playAreaBottom: 0, // プレイエリアの下部Y座標
                 paddle: {
                     width: 100,
                     height: 15,
@@ -261,28 +264,40 @@
                     width = height * aspectRatio;
                 }
                 
+                // プレイエリアのサイズ計算
+                // 画像の高さ + 下部の空間（画像の25%程度）
+                gameState.imageHeight = height;
+                const bottomSpace = height * 0.25; // 下部空間は画像の25%
+                gameState.playAreaHeight = height + bottomSpace;
+                
                 gameState.resizedWidth = width;
-                gameState.resizedHeight = height;
-                console.log("キャンバスサイズ:", width, "x", height);
+                gameState.resizedHeight = gameState.playAreaHeight;
+                console.log("キャンバスサイズ:", width, "x", gameState.playAreaHeight);
                 
                 // キャンバスサイズを設定
                 canvas.width = width;
-                canvas.height = height;
+                canvas.height = gameState.playAreaHeight;
                 
-                // ブロックサイズを計算 - 上部75%だけをブロックで覆う
+                // 画像の下端位置を記録
+                gameState.playAreaBottom = gameState.playAreaHeight;
+                
+                // ブロック行数を計算（画像全体をカバー）
+                gameState.blockRows = 5; // 適切な行数
+                
+                // ブロックサイズを計算
                 gameState.blockSize = {
                     width: width / gameState.blockColumns,
-                    height: (height * 0.75) / gameState.blockRows
+                    height: gameState.imageHeight / gameState.blockRows
                 };
                 
                 // パドルの初期位置を設定
                 gameState.paddle.width = width * 0.15; // 画面幅の15%
                 gameState.paddle.x = (width - gameState.paddle.width) / 2;
-                gameState.paddle.y = height - gameState.paddle.height - 10;
+                gameState.paddle.y = gameState.playAreaHeight - gameState.paddle.height - 10;
                 
                 // ボールの初期位置と速度を設定
                 gameState.ball.x = width / 2;
-                gameState.ball.y = height - gameState.paddle.height - gameState.ball.radius - 15;
+                gameState.ball.y = gameState.playAreaHeight - gameState.paddle.height - gameState.ball.radius - 15;
                 gameState.ball.dx = gameState.ball.speed;
                 gameState.ball.dy = -gameState.ball.speed;
                 
@@ -398,9 +413,14 @@
                 // キャンバスをクリア
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 
-                // 背景を黒で塗りつぶす
+                // 背景を描画
+                // 上部（画像部分）は黒で塗りつぶす
                 ctx.fillStyle = '#000000';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillRect(0, 0, canvas.width, gameState.imageHeight);
+                
+                // 下部（プレイエリア）は別の色で塗りつぶす
+                ctx.fillStyle = '#333366'; // 濃い青系の色
+                ctx.fillRect(0, gameState.imageHeight, canvas.width, canvas.height - gameState.imageHeight);
                 
                 // 見えているブロックの部分だけ背景画像を描画
                 if (gameState.backImage) {
@@ -409,9 +429,9 @@
                         if (!block.visible) {
                             // ソース画像の該当部分を計算
                             const sourceX = (block.x / canvas.width) * gameState.backImage.width;
-                            const sourceY = (block.y / canvas.height) * gameState.backImage.height;
+                            const sourceY = (block.y / gameState.imageHeight) * gameState.backImage.height;
                             const sourceWidth = (block.width / canvas.width) * gameState.backImage.width;
-                            const sourceHeight = (block.height / canvas.height) * gameState.backImage.height;
+                            const sourceHeight = (block.height / gameState.imageHeight) * gameState.backImage.height;
                             
                             // 対応する部分を背景として描画
                             ctx.drawImage(
@@ -431,6 +451,9 @@
                 
                 // ボールを描画
                 drawBall();
+                
+                // スコアを描画
+                drawScore();
                 
                 // ボールの移動
                 moveBall();
@@ -458,6 +481,17 @@
                 }
             }
 
+            // スコア表示
+            function drawScore() {
+                ctx.font = "16px Arial";
+                ctx.fillStyle = "#FFFFFF";
+                ctx.textAlign = "left";
+                ctx.fillText("スコア: " + gameState.score, 8, gameState.imageHeight + 20);
+                
+                ctx.textAlign = "right";
+                ctx.fillText("残り: " + gameState.lives, canvas.width - 8, gameState.imageHeight + 20);
+            }
+
             // ブロックの描画
             function drawBlocks() {
                 for (let i = 0; i < gameState.blocks.length; i++) {
@@ -467,9 +501,9 @@
                         if (gameState.frontImage) {
                             // ソース画像の該当部分を計算
                             const sourceX = (block.x / canvas.width) * gameState.frontImage.width;
-                            const sourceY = (block.y / canvas.height) * gameState.frontImage.height;
+                            const sourceY = (block.y / gameState.imageHeight) * gameState.frontImage.height;
                             const sourceWidth = (block.width / canvas.width) * gameState.frontImage.width;
-                            const sourceHeight = (block.height / canvas.height) * gameState.frontImage.height;
+                            const sourceHeight = (block.height / gameState.imageHeight) * gameState.frontImage.height;
                             
                             // 対応する部分をブロックとして描画
                             ctx.drawImage(
@@ -492,9 +526,9 @@
 
             // パドルの描画
             function drawPaddle() {
-                ctx.fillStyle = '#0095DD';
+                ctx.fillStyle = '#22CCDD';
                 ctx.fillRect(gameState.paddle.x, gameState.paddle.y, gameState.paddle.width, gameState.paddle.height);
-                ctx.strokeStyle = '#003366';
+                ctx.strokeStyle = '#0099AA';
                 ctx.strokeRect(gameState.paddle.x, gameState.paddle.y, gameState.paddle.width, gameState.paddle.height);
             }
 
