@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>画像ブロック崩し</title>
+    <title>画像明かしブロック崩し</title>
     <style>
         body {
             margin: 0;
@@ -99,7 +99,7 @@
         <canvas id="gameCanvas"></canvas>
         
         <div id="startScreen">
-            <h1>画像ブロック崩し</h1>
+            <h1>画像明かしブロック崩し</h1>
             <div id="loadingContainer">
                 <p>画像が読み込まれるのを待っています...</p>
                 <div class="loading">
@@ -640,14 +640,33 @@
                     
                     // ボールが上から当たった場合のみ反射
                     if (gameState.ball.dy > 0) {
-                        // パドルのどこに当たったかで反射角を変える
-                        const hitPos = (gameState.ball.x - gameState.paddle.x) / gameState.paddle.width;
-                        const angle = hitPos * Math.PI - Math.PI / 2; // -90度～90度
+                        // パドルのどこに当たったかで反射角を変える（-1.0〜1.0の範囲）
+                        const hitPos = 2 * (gameState.ball.x - gameState.paddle.x) / gameState.paddle.width - 1;
                         
-                        gameState.ball.dx = gameState.ball.speed * Math.cos(angle) * 1.2; // 速度調整
-                        gameState.ball.dy = -gameState.ball.speed * Math.sin(angle) * 1.2;
+                        // 反射角の計算を改善（水平になりすぎないように）
+                        const maxAngle = Math.PI / 3; // 最大60度
+                        const angle = hitPos * maxAngle;
                         
-                        // パドル衝突時のエフェクトをつける場合はここに追加
+                        // 速度の大きさを保存
+                        const speed = Math.sqrt(gameState.ball.dx * gameState.ball.dx + gameState.ball.dy * gameState.ball.dy);
+                        
+                        // 新しい方向を設定
+                        gameState.ball.dx = Math.sin(angle) * speed;
+                        gameState.ball.dy = -Math.cos(angle) * speed;
+                        
+                        // 最小垂直速度を保証（完全に水平にならないようにする）
+                        const minVerticalSpeed = speed * 0.2;
+                        if (Math.abs(gameState.ball.dy) < minVerticalSpeed) {
+                            // 垂直方向の速度が小さすぎる場合は調整
+                            gameState.ball.dy = -minVerticalSpeed;
+                            
+                            // 速度ベクトルの長さを保つため水平方向も調整
+                            const newSpeed = Math.sqrt(speed * speed - minVerticalSpeed * minVerticalSpeed);
+                            gameState.ball.dx = hitPos >= 0 ? newSpeed : -newSpeed;
+                        }
+                        
+                        // ボールをパドルの上に配置して貫通を防ぐ
+                        gameState.ball.y = gameState.paddle.y - gameState.ball.radius;
                     }
                 }
                 
@@ -683,8 +702,6 @@
                                 // 縦からの衝突
                                 gameState.ball.dy = -gameState.ball.dy;
                             }
-                            
-                            // ブロック破壊時のエフェクトをつける場合はここに追加
                             
                             // 一度衝突したら次のブロックは処理しない（多重衝突防止）
                             break;
